@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /c/Users/arann/Desktop/GitHub/prueba_zebra log --oneline --all)",
+      "Bash(git -C /c/Users/arann/Desktop/GitHub/prueba_zebra log --oneline -5)",
+      "Bash(git -C /c/Users/arann/Desktop/GitHub/prueba_zebra ls-files)",
+      "Bash(python -m venv .venv)",
+      "Bash(.venv/Scripts/pip install:*)",
+      "Bash(.venv/Scripts/python -c \"import src.models; import src.config; import src.orchestrator; print\\('Imports OK'\\)\")",
+      "Bash(.venv/Scripts/python -m pytest tests/ -v --tb=short 2>&1)"
+    ]
+  }
+}
