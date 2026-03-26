@@ -67,7 +67,7 @@ El orchestrator implementa una **máquina de estados explícita** con transicion
 
 - Python 3.11+
 - Docker y Docker Compose (para PostgreSQL + pgAdmin)
-- API key de OpenAI o Anthropic
+- API key de OpenAI, Anthropic o Google Gemini (al menos una)
 
 ---
 
@@ -271,8 +271,9 @@ prueba_zebra/
 |----------|-------------|---------|
 | `OPENAI_API_KEY` | API key de OpenAI | — |
 | `ANTHROPIC_API_KEY` | API key de Anthropic | — |
-| `DEFAULT_PROVIDER` | Proveedor por defecto | `openai` |
-| `DEFAULT_MODEL` | Modelo principal | `gpt-4o` |
+| `GEMINI_API_KEY` | API key de Google Gemini | — |
+| `DEFAULT_PROVIDER` | Proveedor por defecto: `openai`, `anthropic` o `gemini` | `openai` |
+| `DEFAULT_MODEL` | Modelo principal (depende del proveedor) | `gpt-4o` |
 | `FALLBACK_MODEL` | Modelo de fallback | `gpt-4o-mini` |
 | `DATABASE_URL` | URL de conexión a PostgreSQL | `postgresql+asyncpg://zebra:zebra_secret@localhost:5432/zebra_agents` |
 | `REVIEW_CONFIDENCE_THRESHOLD` | Umbral de confianza para aprobar | `0.7` |

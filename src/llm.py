@@ -48,6 +48,14 @@ try:
 except ImportError:
     _anthropic_available = False
 
+try:
+    from google import genai as google_genai
+    from google.genai import types as genai_types
+
+    _gemini_available = True
+except ImportError:
+    _gemini_available = False
+
 
 class LLMError(Exception):
     """Error irrecuperable al llamar al LLM."""
@@ -130,6 +138,63 @@ async def _call_anthropic(
         prompt_tokens=response.usage.input_tokens,
         completion_tokens=response.usage.output_tokens,
         total_tokens=response.usage.input_tokens + response.usage.output_tokens,
+    )
+    return content, usage
+
+
+async def _call_gemini(
+    messages: list[dict],
+    model: str,
+    temperature: float,
+) -> tuple[str, TokenUsage]:
+    settings = get_settings()
+    client = google_genai.Client(api_key=settings.gemini_api_key)
+
+    # Separar system prompt de los mensajes de conversacion
+    system_instruction = None
+    contents = []
+    for m in messages:
+        if m["role"] == "system":
+            system_instruction = m["content"]
+        elif m["role"] == "user":
+            contents.append(genai_types.Content(
+                role="user",
+                parts=[genai_types.Part(text=m["content"])],
+            ))
+        elif m["role"] == "assistant":
+            contents.append(genai_types.Content(
+                role="model",
+                parts=[genai_types.Part(text=m["content"])],
+            ))
+
+    # Si no hay mensajes de conversacion (solo system), enviar un content vacio de user
+    if not contents:
+        contents.append(genai_types.Content(
+            role="user",
+            parts=[genai_types.Part(text="Procede.")],
+        ))
+
+    config = genai_types.GenerateContentConfig(
+        temperature=temperature,
+        response_mime_type="application/json",
+        system_instruction=system_instruction,
+    )
+
+    response = await client.aio.models.generate_content(
+        model=model,
+        contents=contents,
+        config=config,
+    )
+
+    content = response.text or "{}"
+    meta = response.usage_metadata
+    prompt_tokens = meta.prompt_token_count if meta else 0
+    completion_tokens = meta.candidates_token_count if meta else 0
+
+    usage = TokenUsage(
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=prompt_tokens + completion_tokens,
     )
     return content, usage
 
@@ -251,6 +316,8 @@ async def _call_with_retry(
     async def _attempt() -> tuple[str, TokenUsage]:
         if provider == "openai":
             return await _call_openai(messages, model, temperature)
+        elif provider == "gemini":
+            return await _call_gemini(messages, model, temperature)
         else:
             return await _call_anthropic(messages, model, temperature)
 

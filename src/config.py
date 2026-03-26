@@ -21,7 +21,8 @@ class Settings(BaseSettings):
     # --- LLM Providers ---
     openai_api_key: str = ""
     anthropic_api_key: str = ""
-    default_provider: Literal["openai", "anthropic"] = "openai"
+    gemini_api_key: str = ""
+    default_provider: Literal["openai", "anthropic", "gemini"] = "openai"
     default_model: str = "gpt-4o"
     fallback_model: str = "gpt-4o-mini"
 
@@ -47,20 +48,28 @@ class Settings(BaseSettings):
         return bool(self.anthropic_api_key)
 
     @property
+    def has_gemini(self) -> bool:
+        return bool(self.gemini_api_key)
+
+    @property
     def active_provider(self) -> str:
         """Devuelve el proveedor activo segun las claves disponibles."""
         if self.default_provider == "openai" and self.has_openai:
             return "openai"
         if self.default_provider == "anthropic" and self.has_anthropic:
             return "anthropic"
+        if self.default_provider == "gemini" and self.has_gemini:
+            return "gemini"
         # Fallback automatico si el proveedor primario no tiene key
         if self.has_openai:
             return "openai"
         if self.has_anthropic:
             return "anthropic"
+        if self.has_gemini:
+            return "gemini"
         raise ValueError(
             "No se encontro ninguna API key configurada. "
-            "Configura OPENAI_API_KEY o ANTHROPIC_API_KEY en el archivo .env"
+            "Configura OPENAI_API_KEY, ANTHROPIC_API_KEY o GEMINI_API_KEY en el archivo .env"
         )
 
 

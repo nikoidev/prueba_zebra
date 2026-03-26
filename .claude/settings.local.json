@@ -7,7 +7,11 @@
       "Bash(python -m venv .venv)",
       "Bash(.venv/Scripts/pip install:*)",
       "Bash(.venv/Scripts/python -c \"import src.models; import src.config; import src.orchestrator; print\\('Imports OK'\\)\")",
-      "Bash(.venv/Scripts/python -m pytest tests/ -v --tb=short 2>&1)"
+      "Bash(.venv/Scripts/python -m pytest tests/ -v --tb=short 2>&1)",
+      "Bash(.venv/Scripts/python -c \"from src.llm import _call_gemini; print\\(''''Import OK''''\\)\")",
+      "Bash(.venv/Scripts/python -m pytest tests/ -v --tb=short)",
+      "Bash(.venv/Scripts/python -m pytest tests/ -q)",
+      "Bash(.venv/Scripts/python run.py --no-db \"test rapido de arranque\")"
     ]
   }
 }
