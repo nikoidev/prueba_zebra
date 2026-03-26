@@ -238,7 +238,7 @@ async def call_llm(
         LLMParseError: Si el JSON del LLM no cumple el schema
     """
     settings = get_settings()
-    active_model = model or settings.default_model
+    active_model = model or settings.active_model
 
     # --- 1. Consultar cache ---
     if use_cache and db_session is not None:
@@ -263,7 +263,7 @@ async def call_llm(
 
     # --- 3. Fallback si el primario fallo ---
     if raw_content is None:
-        fallback = settings.fallback_model
+        fallback = settings.active_fallback_model
         logger.warning("llm_primary_failed_trying_fallback", fallback=fallback)
         raw_content, usage = await _call_with_retry(messages, fallback, temperature)
         if raw_content is None:

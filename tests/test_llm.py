@@ -99,11 +99,14 @@ class TestCallLlmWithCache:
                 AsyncMock(),  # save_to_cache
             )
             with patch("src.llm._call_with_retry", new_callable=AsyncMock) as mock_retry:
-                result, usage = await call_llm(
-                    messages=[{"role": "user", "content": "test"}],
-                    response_model=SimpleOutput,
-                    db_session=mock_session,
-                )
+                with patch("src.llm.get_settings") as mock_settings:
+                    mock_settings.return_value.active_model = "gpt-4o"
+                    mock_settings.return_value.active_fallback_model = "gpt-4o-mini"
+                    result, usage = await call_llm(
+                        messages=[{"role": "user", "content": "test"}],
+                        response_model=SimpleOutput,
+                        db_session=mock_session,
+                    )
 
         mock_retry.assert_not_called()
         assert result.value == "cached"

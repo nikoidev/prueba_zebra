@@ -25,6 +25,7 @@ import sys
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.prompt import Prompt
 from rich.syntax import Syntax
 from rich.table import Table
 
@@ -64,6 +65,95 @@ def build_parser() -> argparse.ArgumentParser:
         help="Mostrar historial de ejecuciones recientes",
     )
     return parser
+
+
+def select_provider() -> tuple[str, str]:
+    """
+    Detecta los providers disponibles y pide al usuario que elija
+    si hay mas de uno. Devuelve (provider, model) elegidos.
+    """
+    from src.config import get_settings
+
+    settings = get_settings()
+    available = settings.available_providers
+
+    if not available:
+        console.print(
+            "[red]Error:[/red] No se encontro ninguna API key valida en el .env.\n"
+            "Configura al menos una de: OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY"
+        )
+        raise SystemExit(1)
+
+    # Modelos sugeridos por proveedor
+    suggested_models = {
+        "openai":    ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+        "anthropic": ["claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5-20251001"],
+        "gemini":    ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"],
+    }
+
+    # Solo un provider disponible: auto-seleccionar
+    if len(available) == 1:
+        provider = available[0]
+        model = settings.active_model
+        console.print(
+            Panel(
+                f"[green]Proveedor detectado:[/green] [bold]{provider}[/bold]\n"
+                f"[green]Modelo:[/green] [bold]{model}[/bold]",
+                title="[cyan]Configuracion LLM[/cyan]",
+                border_style="cyan",
+            )
+        )
+        return provider, model
+
+    # Multiples providers: mostrar menu
+    console.print(
+        Panel(
+            "Se detectaron multiples API keys. Elige el proveedor y modelo a usar.",
+            title="[cyan]Seleccion de Proveedor[/cyan]",
+            border_style="cyan",
+        )
+    )
+
+    # Menu de proveedor
+    provider_options = {str(i + 1): p for i, p in enumerate(available)}
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("#", width=4)
+    table.add_column("Proveedor", width=12)
+    table.add_column("Modelos sugeridos")
+    for num, prov in provider_options.items():
+        table.add_row(num, prov, ", ".join(suggested_models.get(prov, [])))
+    console.print(table)
+
+    choice = Prompt.ask(
+        "Elige el proveedor",
+        choices=list(provider_options.keys()),
+        default="1",
+    )
+    provider = provider_options[choice]
+
+    # Menu de modelo
+    models = suggested_models.get(provider, [])
+    console.print(f"\nModelos disponibles para [bold]{provider}[/bold]:")
+    model_options = {str(i + 1): m for i, m in enumerate(models)}
+    for num, mod in model_options.items():
+        console.print(f"  [cyan]{num}[/cyan]. {mod}")
+
+    model_choice = Prompt.ask(
+        "Elige el modelo (o escribe uno personalizado)",
+        default="1",
+    )
+    # Si el usuario escribe un numero del menu, usar ese modelo; si no, usar como nombre directo
+    model = model_options.get(model_choice, model_choice)
+
+    console.print(
+        Panel(
+            f"[green]Proveedor:[/green] [bold]{provider}[/bold]\n"
+            f"[green]Modelo:[/green] [bold]{model}[/bold]",
+            title="[cyan]Configuracion seleccionada[/cyan]",
+            border_style="green",
+        )
+    )
+    return provider, model
 
 
 async def show_history() -> None:
@@ -109,10 +199,15 @@ async def main_async(args: argparse.Namespace) -> int:
     from src.observability import configure_logging
     configure_logging()
 
-    # Modo historial
+    # Modo historial (no necesita seleccionar proveedor)
     if args.history:
         await show_history()
         return 0
+
+    # Seleccionar proveedor y modelo
+    from src.config import set_provider_override
+    provider, model = select_provider()
+    set_provider_override(provider, model)
 
     # Obtener el request
     if args.request:
@@ -157,7 +252,8 @@ async def main_async(args: argparse.Namespace) -> int:
     # Ejecutar pipeline
     console.print(
         Panel(
-            f"[bold]Request:[/bold] {request[:120]}{'...' if len(request) > 120 else ''}",
+            f"[bold]Request:[/bold] {request[:120]}{'...' if len(request) > 120 else ''}\n"
+            f"[dim]Proveedor: {provider} | Modelo: {model}[/dim]",
             title="[cyan]Iniciando Pipeline[/cyan]",
             border_style="cyan",
         )
