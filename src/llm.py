@@ -144,9 +144,12 @@ async def _call_anthropic(
 
 async def list_gemini_models() -> list[str]:
     """
-    Consulta la API de Gemini y devuelve los modelos disponibles
-    que soportan generateContent, ordenados por nombre.
+    Consulta la API de Gemini y devuelve los modelos de texto disponibles,
+    excluyendo modelos deprecados y especializados (TTS, imagen, robótica, etc.).
     """
+    # Patrones que identifican modelos no-texto o no aptos para generateContent general
+    _EXCLUDE_PATTERNS = {"tts", "image", "robotics", "computer-use", "customtools"}
+
     settings = get_settings()
     client = google_genai.Client(api_key=settings.gemini_api_key)
     models = []
@@ -163,6 +166,9 @@ async def list_gemini_models() -> list[str]:
         if supported is not None and "generateContent" not in supported:
             continue
         short_name = name.replace("models/", "")
+        # Excluir modelos especializados (TTS, imagen, robótica, etc.)
+        if any(p in short_name for p in _EXCLUDE_PATTERNS):
+            continue
         models.append(short_name)
     return sorted(set(models))
 

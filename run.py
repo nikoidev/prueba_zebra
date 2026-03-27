@@ -5,12 +5,10 @@ Entry point del sistema multi-agente Zebra.
 Uso:
     python run.py "Quiero lanzar una plataforma SaaS de gestion de turnos"
     python run.py --verbose "Disenar una arquitectura de microservicios"
-    python run.py --no-db "Request de prueba sin base de datos"
     python run.py --history          # Ver historial de ejecuciones
 
 Flags:
     --verbose   Muestra trazas de agentes en tiempo real
-    --no-db     Ejecuta sin conectar a PostgreSQL (util para pruebas rapidas)
     --output    Formato de salida: "json" (default) o "markdown"
     --history   Muestra el historial de las ultimas ejecuciones
 """
@@ -47,11 +45,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--verbose", "-v",
         action="store_true",
         help="Mostrar trazas de agentes en tiempo real",
-    )
-    parser.add_argument(
-        "--no-db",
-        action="store_true",
-        help="Ejecutar sin conectar a PostgreSQL",
     )
     parser.add_argument(
         "--output", "-o",
@@ -228,12 +221,38 @@ async def main_async(args: argparse.Namespace) -> int:
     from src.observability import configure_logging
     configure_logging()
 
-    # Modo historial (no necesita seleccionar proveedor)
+    # 1. Verificar conexion a la DB (lo primero que ve el usuario)
+    db_session = None
+    db_ctx = None
+    try:
+        from src.db.connection import get_session, init_db
+        await init_db()
+        db_ctx = get_session()
+        db_session = await db_ctx.__aenter__()
+        console.print(
+            Panel(
+                "[green]Conexion establecida con la base de datos[/green]",
+                title="[green]Base de datos[/green]",
+                border_style="green",
+            )
+        )
+    except Exception as e:
+        console.print(
+            Panel(
+                f"[red]No se pudo conectar a la base de datos:[/red] {e}\n\n"
+                "[dim]Ejecuta:[/dim] [bold]docker-compose up -d[/bold]",
+                title="[red]Error de conexion[/red]",
+                border_style="red",
+            )
+        )
+        return 1
+
+    # 2. Modo historial
     if args.history:
         await show_history()
         return 0
 
-    # Seleccionar proveedor y modelo
+    # 3. Seleccionar proveedor y modelo
     from src.config import set_provider_override
     provider, model = await select_provider()
     set_provider_override(provider, model)
@@ -260,23 +279,9 @@ async def main_async(args: argparse.Namespace) -> int:
         console.print("[red]Error: La solicitud no puede estar vacia.[/red]")
         return 1
 
-    # Inicializar DB
+    # Inicializar DB (obligatoria para cache de tokens)
     db_session = None
     db_ctx = None
-
-    if not args.no_db:
-        try:
-            from src.db.connection import get_session, init_db
-            await init_db()
-            db_ctx = get_session()
-            db_session = await db_ctx.__aenter__()
-        except Exception as e:
-            console.print(
-                f"[yellow]Advertencia: No se pudo conectar a la DB: {e}[/yellow]\n"
-                "[yellow]Continuando sin persistencia (usa --no-db para suprimir este mensaje)[/yellow]"
-            )
-            db_session = None
-            db_ctx = None
 
     # Ejecutar pipeline
     console.print(
