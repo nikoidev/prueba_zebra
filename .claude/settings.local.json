@@ -1,4 +1,5 @@
 {
+  "enableAllProjectMcpServers": true,
   "permissions": {
     "allow": [
       "Bash(git -C /c/Users/arann/Desktop/GitHub/prueba_zebra log --oneline --all)",

@@ -236,11 +236,14 @@ async def run(
         # Persistir trazas en DB
         if db_session is not None and context.traces:
             try:
-                from src.db.repository import save_agent_trace, save_error
+                from src.db.repository import save_agent_trace, save_error, save_review
                 last_trace = context.traces[-1]
                 await save_agent_trace(db_session, context.request_id, last_trace)
                 for error in context.errors:
                     await save_error(db_session, context.request_id, error)
+                # Persistir review si el agente que acaba de ejecutar es el Reviewer
+                if current_state in (State.REVIEWING,) and context.review is not None:
+                    await save_review(db_session, context.request_id, context.review)
                 await db_session.commit()
             except Exception as e:
                 logger.warning("db_save_trace_failed", error=str(e))

@@ -79,13 +79,13 @@ async def select_provider() -> tuple[str, str]:
 
     # Modelos estaticos por proveedor (fallback si la API no responde)
     static_models = {
-        "openai":    ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+        "openai":    [],
         "anthropic": ["claude-sonnet-4-6", "claude-opus-4-6", "claude-haiku-4-5-20251001"],
         "gemini":    [],
     }
 
     async def get_models(provider: str) -> list[str]:
-        """Devuelve modelos disponibles. Para Gemini consulta la API real."""
+        """Devuelve modelos disponibles consultando la API del proveedor."""
         if provider == "gemini":
             try:
                 from src.llm import list_gemini_models
@@ -95,7 +95,16 @@ async def select_provider() -> tuple[str, str]:
                     return models
             except Exception as e:
                 console.print(f"[yellow]No se pudieron obtener modelos Gemini: {e}[/yellow]")
-        return static_models.get(provider, [])
+        elif provider == "openai":
+            try:
+                from src.llm import list_openai_models
+                with console.status("[cyan]Consultando modelos OpenAI disponibles...[/cyan]"):
+                    models = await list_openai_models()
+                if models:
+                    return models
+            except Exception as e:
+                console.print(f"[yellow]No se pudieron obtener modelos OpenAI: {e}[/yellow]")
+        return static_models.get(provider, ["gpt-4o", "gpt-4o-mini"])
 
     # Solo un provider disponible: auto-seleccionar proveedor, mostrar menu de modelos
     if len(available) == 1:
@@ -278,10 +287,6 @@ async def main_async(args: argparse.Namespace) -> int:
     if not request:
         console.print("[red]Error: La solicitud no puede estar vacia.[/red]")
         return 1
-
-    # Inicializar DB (obligatoria para cache de tokens)
-    db_session = None
-    db_ctx = None
 
     # Ejecutar pipeline
     console.print(

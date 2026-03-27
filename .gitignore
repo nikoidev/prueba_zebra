@@ -18,6 +18,9 @@ env/
 .env
 *.env.local
 
+# MCP config (contiene credenciales de DB)
+.mcp.json
+
 # IDE
 .vscode/
 .idea/

@@ -105,6 +105,35 @@ async def _call_openai(
     return content, usage
 
 
+async def list_openai_models() -> list[str]:
+    """
+    Consulta la API de OpenAI y devuelve los modelos de chat disponibles,
+    excluyendo embeddings, DALL-E, TTS, Whisper, fine-tuned y snapshots deprecados.
+    """
+    _CHAT_PREFIXES = ("gpt-4o", "gpt-4-turbo", "o1", "o3", "o4")
+    _EXCLUDE_EXACT = {
+        "gpt-4-0314", "gpt-4-0613",
+        "gpt-4-32k", "gpt-4-32k-0314", "gpt-4-32k-0613",
+    }
+
+    settings = get_settings()
+    client = AsyncOpenAI(api_key=settings.openai_api_key)
+    response = await client.models.list()
+    models = []
+    for m in response:
+        model_id = m.id
+        if "ft:" in model_id or model_id.startswith("ft-"):
+            continue
+        if not any(model_id.startswith(p) for p in _CHAT_PREFIXES):
+            continue
+        if model_id in _EXCLUDE_EXACT:
+            continue
+        if model_id.endswith("-instruct"):
+            continue
+        models.append(model_id)
+    return sorted(set(models))
+
+
 async def _call_anthropic(
     messages: list[dict],
     model: str,
