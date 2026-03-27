@@ -111,6 +111,7 @@ async def list_openai_models() -> list[str]:
     excluyendo embeddings, DALL-E, TTS, Whisper, fine-tuned y snapshots deprecados.
     """
     _CHAT_PREFIXES = ("gpt-4o", "gpt-4-turbo", "o1", "o3", "o4")
+    _EXCLUDE_PATTERNS = {"audio", "realtime", "tts", "transcribe", "search", "diarize"}
     _EXCLUDE_EXACT = {
         "gpt-4-0314", "gpt-4-0613",
         "gpt-4-32k", "gpt-4-32k-0314", "gpt-4-32k-0613",
@@ -129,6 +130,8 @@ async def list_openai_models() -> list[str]:
         if model_id in _EXCLUDE_EXACT:
             continue
         if model_id.endswith("-instruct"):
+            continue
+        if any(p in model_id for p in _EXCLUDE_PATTERNS):
             continue
         models.append(model_id)
     return sorted(set(models))

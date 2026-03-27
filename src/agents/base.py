@@ -16,6 +16,7 @@ from datetime import datetime
 
 import structlog
 
+from src.config import get_settings
 from src.models import AgentTrace, ErrorRecord, SharedContext, TokenUsage
 
 logger = structlog.get_logger(__name__)
@@ -65,13 +66,14 @@ class BaseAgent(ABC):
         Llamar al final de execute(), tanto en caso de exito como de error.
         """
         duration_ms = (time.monotonic() - start_time) * 1000
+        effective_model = model_used or get_settings().active_model
         trace = AgentTrace(
             agent_name=self.name,
             state=context.current_state,
             input_summary=input_summary[:500],  # truncar para no inflar la DB
             output_summary=output_summary[:500],
             duration_ms=round(duration_ms, 1),
-            model_used=model_used,
+            model_used=effective_model,
             token_usage=token_usage,
             timestamp=datetime.utcnow(),
         )

@@ -78,12 +78,12 @@ class TestStateMachine:
         result = _next_state(ctx)
         assert result == State.FAILED
 
-    def test_reviewing_high_confidence_but_not_approved_revises(self):
-        """Si confidence >= threshold pero approved=False, igual se revisa."""
+    def test_reviewing_high_confidence_but_not_approved_finalizes(self):
+        """Si confidence >= threshold aunque approved=False, la confianza manda y se finaliza."""
         ctx = self.make_context("REVIEWING")
         ctx.review = self.make_review(approved=False, confidence=0.8)
         result = _next_state(ctx)
-        assert result == State.REVISING
+        assert result == State.FINALIZING
 
 
 # ---------------------------------------------------------------------------

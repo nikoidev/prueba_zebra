@@ -46,6 +46,10 @@ def configure_logging() -> None:
         level=log_level,
     )
 
+    # Silenciar logs HTTP de las librerias de LLM (httpx, openai, httpcore)
+    for noisy_logger in ("httpx", "openai", "httpcore", "anthropic"):
+        logging.getLogger(noisy_logger).setLevel(logging.WARNING)
+
 
 def get_logger(name: str) -> FilteringBoundLogger:
     return structlog.get_logger(name)

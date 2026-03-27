@@ -107,8 +107,10 @@ class DomainExpertAgent(BaseAgent):
             return context
 
         # Fan-out paralelo: todas las subtareas se procesan simultaneamente
+        # No pasamos db_session a tareas paralelas porque SQLAlchemy async no permite
+        # operaciones concurrentes en la misma sesion. El cache se usa en agentes secuenciales.
         tasks = [
-            self._analyze_subtask(subtask, context.original_request, db_session)
+            self._analyze_subtask(subtask, context.original_request, None)
             for subtask in context.subtasks
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
