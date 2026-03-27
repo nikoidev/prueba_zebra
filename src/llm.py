@@ -149,6 +149,8 @@ async def list_gemini_models() -> list[str]:
     """
     # Patrones que identifican modelos no-texto o no aptos para generateContent general
     _EXCLUDE_PATTERNS = {"tts", "image", "robotics", "computer-use", "customtools"}
+    # Prefijos deprecados para nuevos usuarios (dan 404)
+    _DEPRECATED_PREFIXES = ("gemini-2.0-", "gemini-1.5-", "gemini-1.0-")
 
     settings = get_settings()
     client = google_genai.Client(api_key=settings.gemini_api_key)
@@ -166,6 +168,9 @@ async def list_gemini_models() -> list[str]:
         if supported is not None and "generateContent" not in supported:
             continue
         short_name = name.replace("models/", "")
+        # Excluir modelos deprecados para nuevos usuarios
+        if short_name.startswith(_DEPRECATED_PREFIXES):
+            continue
         # Excluir modelos especializados (TTS, imagen, robótica, etc.)
         if any(p in short_name for p in _EXCLUDE_PATTERNS):
             continue
