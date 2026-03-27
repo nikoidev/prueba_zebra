@@ -120,7 +120,7 @@ async def list_openai_models() -> list[str]:
     client = AsyncOpenAI(api_key=settings.openai_api_key)
     response = await client.models.list()
     models = []
-    for m in response:
+    for m in response.data:
         model_id = m.id
         if "ft:" in model_id or model_id.startswith("ft-"):
             continue
