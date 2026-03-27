@@ -13,7 +13,13 @@
       "Bash(.venv/Scripts/python -m pytest tests/ -q)",
       "Bash(.venv/Scripts/python run.py --no-db \"test rapido de arranque\")",
       "Bash(.venv/Scripts/python -c \"\nimport os; os.environ['GEMINI_API_KEY'] = 'test-key'\nfrom src.config import Settings\ns = Settings\\(gemini_api_key='test-key', openai_api_key='', anthropic_api_key='', default_model='gpt-4o', fallback_model='gpt-4o-mini'\\)\nprint\\('provider:', s.active_provider\\)\nprint\\('model:', s.active_model\\)\nprint\\('fallback:', s.active_fallback_model\\)\n\")",
-      "Bash(.venv/Scripts/python -m pytest tests/test_llm.py::TestCallLlmWithCache::test_cache_hit_skips_llm -v --tb=short)"
+      "Bash(.venv/Scripts/python -m pytest tests/test_llm.py::TestCallLlmWithCache::test_cache_hit_skips_llm -v --tb=short)",
+      "Bash(python -m pytest tests/ -x -q)",
+      "Bash(py -m pytest tests/ -x -q)",
+      "Bash(where python:*)",
+      "Bash(where pip:*)",
+      "Bash(pip show:*)",
+      "Bash(pip install:*)"
     ]
   }
 }

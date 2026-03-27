@@ -142,6 +142,31 @@ async def _call_anthropic(
     return content, usage
 
 
+async def list_gemini_models() -> list[str]:
+    """
+    Consulta la API de Gemini y devuelve los modelos disponibles
+    que soportan generateContent, ordenados por nombre.
+    """
+    settings = get_settings()
+    client = google_genai.Client(api_key=settings.gemini_api_key)
+    models = []
+    async for m in await client.aio.models.list():
+        name = m.name  # formato: "models/gemini-..."
+        if "gemini" not in name:
+            continue
+        # Excluir modelos deprecados si el API expone lifecycle_state
+        lifecycle = getattr(m, "lifecycle_state", None)
+        if lifecycle and str(lifecycle).upper() in ("DEPRECATED", "SCHEDULED_FOR_DEPRECATION"):
+            continue
+        # Solo incluir modelos que soporten generateContent
+        supported = getattr(m, "supported_actions", None)
+        if supported is not None and "generateContent" not in supported:
+            continue
+        short_name = name.replace("models/", "")
+        models.append(short_name)
+    return sorted(set(models))
+
+
 async def _call_gemini(
     messages: list[dict],
     model: str,
@@ -204,6 +229,90 @@ async def _call_gemini(
 # ---------------------------------------------------------------------------
 
 
+def _build_example_from_schema(schema: dict) -> dict:
+    """Genera un ejemplo concreto de JSON a partir del JSON schema de Pydantic."""
+    defs = schema.get("$defs", {})
+
+    def _resolve(prop: dict) -> object:
+        if "$ref" in prop:
+            ref_name = prop["$ref"].split("/")[-1]
+            return _resolve(defs.get(ref_name, {}))
+        if "allOf" in prop:
+            for item in prop["allOf"]:
+                resolved = _resolve(item)
+                if resolved is not None:
+                    return resolved
+            return {}
+        if "anyOf" in prop:
+            for item in prop["anyOf"]:
+                if item.get("type") != "null":
+                    return _resolve(item)
+            return None
+        t = prop.get("type", "string")
+        if t == "object":
+            props = prop.get("properties", {})
+            return {k: _resolve(v) for k, v in props.items()}
+        if t == "array":
+            items = prop.get("items", {})
+            return [_resolve(items)]
+        if t == "string":
+            if "enum" in prop:
+                return prop["enum"][0]
+            return "..."
+        if t == "integer":
+            return 0
+        if t == "number":
+            return 0.0
+        if t == "boolean":
+            return True
+        return "..."
+
+    props = schema.get("properties", {})
+    return {k: _resolve(v) for k, v in props.items()}
+
+
+def _inject_schema(messages: list[dict], response_model: type) -> list[dict]:
+    """Añade un ejemplo JSON concreto al mensaje de sistema para guiar al LLM."""
+    schema = response_model.model_json_schema()
+    example = _build_example_from_schema(schema)
+    example_json = json.dumps(example, indent=2, ensure_ascii=False)
+
+    enriched = [m.copy() for m in messages]
+    instruction = (
+        "\n\nIMPORTANTE: Tu respuesta DEBE ser ÚNICAMENTE un objeto JSON válido "
+        "(sin texto, sin markdown, sin explicaciones) con EXACTAMENTE esta estructura. "
+        "Rellena los valores con contenido real:\n"
+        f"{example_json}"
+    )
+    for msg in enriched:
+        if msg["role"] == "system":
+            msg["content"] += instruction
+            return enriched
+    enriched.insert(0, {"role": "system", "content": instruction.strip()})
+    return enriched
+
+
+def _try_wrap_list(data: list, response_model: type[T]) -> dict | list:
+    """
+    Si el LLM devolvió una lista en vez de un dict, intenta envolverla
+    en el campo lista del modelo (cuando hay exactamente 1 campo de tipo array).
+    """
+    schema = response_model.model_json_schema()
+    props = schema.get("properties", {})
+    required = set(schema.get("required", []))
+    list_fields = [k for k, v in props.items() if v.get("type") == "array"]
+    if len(list_fields) != 1:
+        return data  # ambiguo, devolver sin cambios
+    field = list_fields[0]
+    wrapped: dict = {field: data}
+    # Rellenar campos requeridos faltantes con defaults seguros
+    type_defaults = {"string": "", "number": 0.0, "integer": 0, "boolean": False, "array": []}
+    for k, v in props.items():
+        if k != field and k in required:
+            wrapped.setdefault(k, type_defaults.get(v.get("type", ""), ""))
+    return wrapped
+
+
 async def call_llm(
     messages: list[dict[str, str]],
     response_model: type[T],
@@ -259,13 +368,14 @@ async def call_llm(
             logger.warning("llm_cache_error", error=str(e))
 
     # --- 2. Llamar al LLM con reintentos ---
-    raw_content, usage = await _call_with_retry(messages, active_model, temperature)
+    enriched = _inject_schema(messages, response_model)
+    raw_content, usage = await _call_with_retry(enriched, active_model, temperature)
 
     # --- 3. Fallback si el primario fallo ---
     if raw_content is None:
         fallback = settings.active_fallback_model
         logger.warning("llm_primary_failed_trying_fallback", fallback=fallback)
-        raw_content, usage = await _call_with_retry(messages, fallback, temperature)
+        raw_content, usage = await _call_with_retry(enriched, fallback, temperature)
         if raw_content is None:
             raise LLMError(
                 f"El LLM no respondio despues de {settings.max_retries} intentos "
@@ -342,9 +452,15 @@ def _parse_response(
 
     try:
         data = json.loads(cleaned)
-        return response_model.model_validate(data)
     except json.JSONDecodeError as e:
         raise LLMParseError(f"El LLM devolvio JSON invalido: {e}\nRespuesta: {raw[:200]}")
+
+    # Normalización defensiva: si el LLM devolvió una lista en vez de dict, intentar envolver
+    if isinstance(data, list):
+        data = _try_wrap_list(data, response_model)
+
+    try:
+        return response_model.model_validate(data)
     except ValidationError as e:
         raise LLMParseError(
             f"La respuesta del LLM no cumple el schema {response_model.__name__}: {e}"

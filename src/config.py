@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     _DEFAULT_MODELS: dict[str, tuple[str, str]] = {
         "openai":    ("gpt-4o",              "gpt-4o-mini"),
         "anthropic": ("claude-sonnet-4-6",   "claude-haiku-4-5-20251001"),
-        "gemini":    ("gemini-2.0-flash",    "gemini-1.5-flash"),
+        "gemini":    ("gemini-2.5-flash", "gemini-2.5-flash-lite"),
     }
 
     @property
