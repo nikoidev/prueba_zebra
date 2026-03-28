@@ -81,6 +81,11 @@ async def _get_cache():
 # ---------------------------------------------------------------------------
 
 
+def _is_o_series(model: str) -> bool:
+    """Los modelos o1/o3/o4 tienen API distinta: sin temperature, sin response_format."""
+    return model.startswith(("o1", "o3", "o4"))
+
+
 async def _call_openai(
     messages: list[dict],
     model: str,
@@ -89,12 +94,27 @@ async def _call_openai(
     settings = get_settings()
     client = AsyncOpenAI(api_key=settings.openai_api_key)
 
-    response = await client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=temperature,
-        response_format={"type": "json_object"},
-    )
+    if _is_o_series(model):
+        # Los modelos o-series no soportan temperature ni response_format.
+        # o1/o1-mini tampoco soportan system role: convertir a user.
+        if model.startswith("o1"):
+            adapted = [
+                {**m, "role": "user"} if m["role"] == "system" else m
+                for m in messages
+            ]
+        else:
+            adapted = messages
+        response = await client.chat.completions.create(
+            model=model,
+            messages=adapted,
+        )
+    else:
+        response = await client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            response_format={"type": "json_object"},
+        )
 
     content = response.choices[0].message.content or "{}"
     usage = TokenUsage(
