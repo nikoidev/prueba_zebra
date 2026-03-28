@@ -113,8 +113,9 @@ cp .env.example .env
 Editar `.env` y añadir al menos una API key:
 
 ```env
-OPENAI_API_KEY=sk-...          # recomendado
-ANTHROPIC_API_KEY=sk-ant-...   # alternativa
+OPENAI_API_KEY=sk-...          # recomendado (testeada)
+GEMINI_API_KEY=sk-...          # recomendado (testeada)
+ANTHROPIC_API_KEY=sk-ant-...   # alternativa (no probada)
 ```
 
 ### 5. Levantar la base de datos
