@@ -24,6 +24,7 @@ El orchestrator es el unico punto de entrada y salida del sistema.
 from __future__ import annotations
 
 import time
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
@@ -45,8 +46,15 @@ from src.observability import compute_metrics
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+    from src.models import AgentTrace
 
 logger = structlog.get_logger(__name__)
+
+# Tipo del callback de progreso: (next_state, agent_name, last_trace, context) -> None
+ProgressCallback = Callable[
+    [str, "str | None", "AgentTrace | None", "SharedContext"],
+    Awaitable[None],
+]
 
 
 class State(str, Enum):
@@ -167,6 +175,7 @@ async def run(
     request: str,
     db_session: "AsyncSession | None" = None,
     verbose: bool = False,
+    progress_callback: "ProgressCallback | None" = None,
 ) -> FinalOutput:
     """
     Punto de entrada del sistema multi-agente.
@@ -249,6 +258,19 @@ async def run(
                 logger.warning("db_save_trace_failed", error=str(e))
 
         context.current_state = _next_state(context).value
+
+        # Notificar progreso al caller (p.ej. WebSocket) si hay callback registrado
+        if progress_callback is not None:
+            try:
+                last_trace = context.traces[-1] if context.traces else None
+                await progress_callback(
+                    context.current_state,
+                    agent.name if agent_class else None,
+                    last_trace,
+                    context,
+                )
+            except Exception:
+                pass  # Nunca romper el pipeline por un callback
 
     # --- Ensamblar output final ---
     if State(context.current_state) == State.DONE:
