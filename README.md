@@ -66,6 +66,7 @@ El orchestrator implementa una **máquina de estados explícita** con transicion
 ## Requisitos
 
 - Python 3.11+
+- Node.js 18+ y npm (para el frontend Vue)
 - Docker y Docker Compose (para PostgreSQL + pgAdmin)
 - API key de OpenAI, Anthropic o Google Gemini (al menos una)
 
@@ -94,7 +95,16 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-### 3. Configurar variables de entorno
+### 3. Instalar dependencias del frontend
+
+```bash
+cd frontend
+npm install
+npm run build
+cd ..
+```
+
+### 4. Configurar variables de entorno
 
 ```bash
 cp .env.example .env
@@ -107,7 +117,7 @@ OPENAI_API_KEY=sk-...          # recomendado
 ANTHROPIC_API_KEY=sk-ant-...   # alternativa
 ```
 
-### 4. Levantar la base de datos
+### 5. Levantar la base de datos
 
 ```bash
 docker-compose up -d
@@ -127,37 +137,60 @@ docker-compose ps
 
 ## Ejecución
 
-### Ejecución básica
+### Interfaz web (recomendado)
+
+```bash
+python server.py
+```
+
+Abrir `http://localhost:8000` en el navegador. El dashboard incluye:
+
+- **Formulario de ejecución:** seleccionar proveedor/modelo y enviar la solicitud
+- **Progreso en tiempo real:** timeline WebSocket que muestra cada agente completándose con duración, tokens y cache hits
+- **Resultado en 5 tabs:** Solución (componentes), Dominios (análisis), Revisión (fortalezas/debilidades), Riesgos (severidad), Trazas (agentes)
+- **Historial:** consultar ejecuciones anteriores con un click
+
+**Desarrollo del frontend** (hot-reload):
+
+```bash
+# Terminal 1 — backend
+python server.py
+
+# Terminal 2 — frontend con HMR
+cd frontend && npm run dev
+# Trabajar en http://localhost:5173 (proxy automático a la API)
+
+# Al terminar: compilar los cambios
+cd frontend && npm run build
+```
+
+### CLI
+
+#### Ejecución básica
 
 ```bash
 python run.py "Quiero lanzar una plataforma SaaS de gestión de turnos para clínicas pequeñas en España"
 ```
 
-### Con trazas en tiempo real
+#### Con trazas en tiempo real
 
 ```bash
 python run.py --verbose "Diseñar una arquitectura de microservicios para un e-commerce"
 ```
 
-### Output en Markdown
+#### Output en Markdown
 
 ```bash
 python run.py --output markdown "Crear un sistema de análisis de datos en tiempo real"
 ```
 
-### Sin base de datos (modo rápido para pruebas)
-
-```bash
-python run.py --no-db "Propuesta de MVP para una app de delivery"
-```
-
-### Ver historial de ejecuciones
+#### Ver historial de ejecuciones
 
 ```bash
 python run.py --history
 ```
 
-### Modo interactivo
+#### Modo interactivo
 
 ```bash
 python run.py
@@ -188,7 +221,8 @@ pytest tests/test_orchestrator.py -v
 ```
 prueba_zebra/
 ├── run.py                        # Entry point CLI
-├── pyproject.toml                # Dependencias y configuración
+├── server.py                     # Entry point Web (FastAPI + uvicorn)
+├── requirements.txt              # Dependencias Python
 ├── docker-compose.yml            # PostgreSQL + pgAdmin
 ├── .env.example                  # Plantilla de variables de entorno
 │
@@ -205,11 +239,36 @@ prueba_zebra/
 │   │   ├── architect.py
 │   │   ├── reviewer.py
 │   │   └── risk_analyst.py
+│   ├── api/
+│   │   ├── app.py                # FastAPI app factory, lifespan, static mount
+│   │   ├── routes.py             # Endpoints REST (/api/providers, models, executions)
+│   │   ├── websocket.py          # WebSocket para ejecución con progreso en vivo
+│   │   └── schemas.py            # Pydantic models de la API
 │   └── db/
 │       ├── models.py             # Modelos SQLAlchemy (5 tablas)
 │       ├── connection.py         # Engine async, session factory
-│       ├── repository.py         # CRUD
-│       └── cache.py              # Cache LLM con hash SHA-256
+│       ├── repository.py         # CRUD + cleanup automático
+│       └── cache.py              # Cache LLM con hash SHA-256 + TTL
+│
+├── frontend/                     # Vue 3 SPA (PrimeVue + Pinia)
+│   ├── package.json
+│   ├── vite.config.ts            # Proxy /api → backend en desarrollo
+│   ├── index.html
+│   └── src/
+│       ├── main.ts               # Bootstrap Vue + PrimeVue dark theme
+│       ├── App.vue               # Layout: sidebar + main area
+│       ├── api.ts                # Helpers HTTP + WebSocket client
+│       ├── stores/pipeline.ts    # Pinia store: estado global del dashboard
+│       └── components/
+│           ├── ExecuteForm.vue       # Formulario proveedor/modelo + solicitud
+│           ├── ProgressTracker.vue   # Timeline de progreso en vivo (WebSocket)
+│           ├── ResultViewer.vue      # Tabs con resultado completo
+│           ├── SolutionTab.vue       # Arquitectura y componentes
+│           ├── DomainAnalysisTab.vue # Análisis por dominio
+│           ├── ReviewTab.vue         # Revisión: fortalezas/debilidades
+│           ├── RiskTab.vue           # Riesgos con severidad
+│           ├── TracesTab.vue         # Trazas de agentes
+│           └── ExecutionHistory.vue  # Historial de ejecuciones
 │
 ├── tests/
 │   ├── test_models.py
@@ -220,6 +279,32 @@ prueba_zebra/
 └── examples/
     └── example_output.json       # Ejemplo de output completo
 ```
+
+---
+
+## API REST y WebSocket
+
+Con el servidor en ejecución, la documentación interactiva de la API está disponible en:
+
+- **Swagger UI:** `http://localhost:8000/api/docs`
+- **ReDoc:** `http://localhost:8000/api/redoc`
+
+### Endpoints
+
+| Método | Path | Descripción |
+|--------|------|-------------|
+| `GET` | `/api/providers` | Providers disponibles (detectados desde `.env`) |
+| `GET` | `/api/models/{provider}` | Modelos disponibles (consultando la API del provider) |
+| `GET` | `/api/executions` | Historial de ejecuciones recientes |
+| `GET` | `/api/executions/{id}` | Detalle completo de una ejecución |
+| `WS` | `/api/ws/execute` | WebSocket para ejecutar el pipeline con progreso en vivo |
+
+### Protocolo WebSocket
+
+1. Cliente envía: `{"request": "...", "provider": "openai", "model": "gpt-4o"}`
+2. Servidor responde progreso por cada agente: `{"type": "progress", "state": "ANALYZING", "agent_name": "domain_expert", ...}`
+3. Al completar: `{"type": "complete", "result": {...}}`
+4. Si falla: `{"type": "error", "message": "..."}`
 
 ---
 
