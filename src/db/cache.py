@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime
 
 import structlog
-from sqlalchemy import select, update
+from datetime import timedelta
+
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -79,7 +82,6 @@ async def save_to_cache(
         .values(
             prompt_hash=prompt_hash,
             model=model,
-            messages=messages,
             response=response,
             token_usage=token_usage,
             hits=0,
@@ -88,3 +90,58 @@ async def save_to_cache(
     )
     await session.execute(stmt)
     logger.debug("cache_saved", hash=prompt_hash[:12], model=model)
+
+
+async def cleanup_expired_cache(session: AsyncSession) -> int:
+    """
+    Elimina entradas vencidas del cache LLM.
+
+    Reglas:
+    - Entradas sin hits en los últimos 7 días → eliminar
+    - Cualquier entrada con más de 30 días → eliminar
+    - Si quedan más de 500 filas → eliminar las más antiguas hasta 500
+
+    Returns:
+        Número de filas eliminadas.
+    """
+    now = datetime.utcnow()
+    deleted = 0
+
+    # 1. Sin hits y más de 7 días (entradas "frías")
+    cold_cutoff = now - timedelta(days=7)
+    result = await session.execute(
+        delete(LLMCache)
+        .where(LLMCache.hits == 0, LLMCache.created_at < cold_cutoff)
+        .returning(LLMCache.id)
+    )
+    deleted += len(result.all())
+
+    # 2. Más de 30 días independientemente de los hits
+    old_cutoff = now - timedelta(days=30)
+    result = await session.execute(
+        delete(LLMCache)
+        .where(LLMCache.created_at < old_cutoff)
+        .returning(LLMCache.id)
+    )
+    deleted += len(result.all())
+
+    # 3. Límite de 500 filas: eliminar las más antiguas si se supera
+    count_result = await session.execute(select(func.count()).select_from(LLMCache))
+    total = count_result.scalar_one()
+    max_rows = 500
+    if total > max_rows:
+        excess = total - max_rows
+        subq = (
+            select(LLMCache.id)
+            .order_by(LLMCache.created_at.asc())
+            .limit(excess)
+            .scalar_subquery()
+        )
+        result = await session.execute(
+            delete(LLMCache).where(LLMCache.id.in_(subq)).returning(LLMCache.id)
+        )
+        deleted += len(result.all())
+
+    if deleted:
+        logger.info("cache_cleanup", deleted=deleted, remaining=total - deleted)
+    return deleted

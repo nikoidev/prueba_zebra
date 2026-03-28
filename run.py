@@ -238,6 +238,15 @@ async def main_async(args: argparse.Namespace) -> int:
         await init_db()
         db_ctx = get_session()
         db_session = await db_ctx.__aenter__()
+        # Limpieza en background: no bloquea el arranque
+        try:
+            from src.db.cache import cleanup_expired_cache
+            from src.db.repository import cleanup_old_executions
+            await cleanup_expired_cache(db_session)
+            await cleanup_old_executions(db_session)
+            await db_session.commit()
+        except Exception:
+            pass  # La limpieza es opcional, nunca bloquea el arranque
         console.print(
             Panel(
                 "[green]Conexion establecida con la base de datos[/green]",

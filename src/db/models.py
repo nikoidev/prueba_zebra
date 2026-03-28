@@ -43,7 +43,7 @@ class Execution(Base):
     final_state: Mapped[str] = mapped_column(String(50), nullable=False)
     final_output: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, nullable=False, default=datetime.utcnow
+        DateTime, nullable=False, default=datetime.utcnow, index=True
     )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     duration_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -72,7 +72,7 @@ class AgentTrace(Base):
         UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     execution_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("executions.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=False), ForeignKey("executions.id", ondelete="CASCADE"), nullable=False, index=True
     )
     agent_name: Mapped[str] = mapped_column(String(100), nullable=False)
     state: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -98,10 +98,10 @@ class LLMCache(Base):
     )
     prompt_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     model: Mapped[str] = mapped_column(String(100), nullable=False)
-    messages: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    messages: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     response: Mapped[dict] = mapped_column(JSONB, nullable=False)
     token_usage: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
     hits: Mapped[int] = mapped_column(Integer, default=0)
 
     __table_args__ = (UniqueConstraint("prompt_hash", "model", name="uq_cache_hash_model"),)
@@ -116,7 +116,7 @@ class ReviewHistory(Base):
         UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     execution_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("executions.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=False), ForeignKey("executions.id", ondelete="CASCADE"), nullable=False, index=True
     )
     revision_number: Mapped[int] = mapped_column(Integer, nullable=False)
     approved: Mapped[bool] = mapped_column(Boolean, nullable=False)
@@ -139,7 +139,7 @@ class ExecutionError(Base):
         UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     execution_id: Mapped[str] = mapped_column(
-        UUID(as_uuid=False), ForeignKey("executions.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=False), ForeignKey("executions.id", ondelete="CASCADE"), nullable=False, index=True
     )
     agent_name: Mapped[str] = mapped_column(String(100), nullable=False)
     error_type: Mapped[str] = mapped_column(String(200), nullable=False)

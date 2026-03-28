@@ -7,10 +7,10 @@ No gestionan transacciones: el caller es responsable del commit/rollback.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import AgentTrace, Execution, ExecutionError, ReviewHistory
@@ -49,7 +49,8 @@ async def save_execution(
             revision_count=context.revision_count,
             overall_confidence=confidence,
             final_output=(
-                context.final_output.model_dump(mode="json") if context.final_output else None
+                context.final_output.model_dump(mode="json", exclude={"agent_traces", "errors"})
+                if context.final_output else None
             ),
         )
         session.add(execution)
@@ -61,7 +62,8 @@ async def save_execution(
         execution.revision_count = context.revision_count
         execution.overall_confidence = confidence
         execution.final_output = (
-            context.final_output.model_dump(mode="json") if context.final_output else None
+            context.final_output.model_dump(mode="json", exclude={"agent_traces", "errors"})
+            if context.final_output else None
         )
 
     logger.info(
@@ -149,3 +151,43 @@ async def get_execution_history(
         select(Execution).order_by(Execution.created_at.desc()).limit(limit)
     )
     return list(result.scalars().all())
+
+
+async def cleanup_old_executions(session: AsyncSession) -> int:
+    """
+    Elimina ejecuciones obsoletas para mantener la DB compacta.
+
+    Reglas:
+    - RECEIVED con más de 1 hora → ejecuciones huérfanas que nunca terminaron
+    - DONE/FAILED con más de 90 días → historial antiguo
+
+    Returns:
+        Número de ejecuciones eliminadas (cascada a traces, reviews, errors).
+    """
+    now = datetime.utcnow()
+    deleted = 0
+
+    # Ejecuciones atascadas en RECEIVED (nunca progresaron)
+    orphan_cutoff = now - timedelta(hours=1)
+    result = await session.execute(
+        delete(Execution)
+        .where(Execution.final_state == "RECEIVED", Execution.created_at < orphan_cutoff)
+        .returning(Execution.id)
+    )
+    deleted += len(result.all())
+
+    # Ejecuciones completadas con más de 90 días
+    old_cutoff = now - timedelta(days=90)
+    result = await session.execute(
+        delete(Execution)
+        .where(
+            Execution.final_state.in_(["DONE", "FAILED"]),
+            Execution.created_at < old_cutoff,
+        )
+        .returning(Execution.id)
+    )
+    deleted += len(result.all())
+
+    if deleted:
+        logger.info("executions_cleanup", deleted=deleted)
+    return deleted

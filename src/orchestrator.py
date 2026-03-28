@@ -202,6 +202,7 @@ async def run(
 
     # --- Loop principal de la maquina de estados ---
     state_agents = _get_state_agents()
+    errors_saved = 0  # Puntero para evitar guardar errores duplicados
 
     while State(context.current_state) not in (State.DONE, State.FAILED):
         current_state = State(context.current_state)
@@ -239,8 +240,10 @@ async def run(
                 from src.db.repository import save_agent_trace, save_error
                 last_trace = context.traces[-1]
                 await save_agent_trace(db_session, context.request_id, last_trace)
-                for error in context.errors:
+                new_errors = context.errors[errors_saved:]
+                for error in new_errors:
                     await save_error(db_session, context.request_id, error)
+                errors_saved = len(context.errors)
                 await db_session.commit()
             except Exception as e:
                 logger.warning("db_save_trace_failed", error=str(e))
