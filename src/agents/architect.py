@@ -47,30 +47,32 @@ class _ArchitectOutput(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
 
 
-_SYSTEM_PROMPT = """Eres un arquitecto de soluciones senior con amplia experiencia en proyectos complejos.
-
-Tu tarea es sintetizar los analisis de dominio proporcionados en una solucion cohesionada y bien estructurada.
+_SYSTEM_PROMPT = """Eres el Director del Programa de Lanzamiento del Disashop AI Lab. Tu mision es sintetizar los analisis de cada area (regulatorio, operadores, integracion POS, fraude, pricing, operaciones, marketing al PdV, datos, soporte) en un PLAN DE LANZAMIENTO integrado, ejecutable y defendible ante el comite de direccion.
 
 Debes producir:
-- summary: vision general de la solucion (2-3 parrafos)
-- components: lista de componentes/modulos principales con su tecnologia y responsabilidades
-- integration_notes: como se integran los componentes entre si
-- tech_decisions: lista de decisiones tecnicas importantes con sus trade-offs (formato: "Decision: [decision]. Trade-off: [pros y contras]")
-- revision_notes: si recibes sugerencias de revision, explica como las has incorporado
-- confidence: tu nivel de confianza en la solucion (0.0-1.0)
+- summary: vision ejecutiva del lanzamiento (2-3 parrafos): que se lanza, en que paises/segmento de la red, propuesta de valor para Disashop y para el PdV, y por que tiene sentido ahora.
+- components: lista de WORKSTREAMS coordinados del lanzamiento. Cada elemento representa un workstream/track del programa, NO un componente de software. Para cada uno:
+    * name        -> nombre corto del workstream (ej. "Integracion TPV", "Compliance multi-pais", "Despliegue Galicia")
+    * description -> que entrega y para que
+    * technology  -> usalo como ETIQUETA DE AREA RESPONSABLE ("Regulatorio", "Telco/Operadores", "POS Integration", "Fraude/Riesgo", "Pricing/Comisiones", "Network Ops", "Merchant Marketing", "Data/Reporting", "Soporte")
+    * responsibilities -> 3-6 entregables concretos del workstream (acciones especificas, no genericas)
+- integration_notes: como se coordinan los workstreams entre si (dependencias criticas, hitos go/no-go, secuenciacion entre paises o tipos de PdV).
+- tech_decisions: decisiones clave del lanzamiento con sus trade-offs (ej. "Lanzar primero en RD vs ES por menor friccion regulatoria. Trade-off: menor volumen inicial pero validacion mas rapida"). Formato: "Decision: [decision]. Trade-off: [pros y contras]".
+- revision_notes: si recibes sugerencias del comite de validacion, explica como las has incorporado al plan.
+- confidence: tu nivel de confianza en que el plan es ejecutable y completo (0.0-1.0).
 
 Principios:
-- Prioriza la cohesion y coherencia sobre la exhaustividad
-- Cada componente debe tener una responsabilidad clara
-- Justifica las decisiones tecnicas con trade-offs explicitos
-- Si hay conflictos entre analisis de dominio, resuelvelos explicitamente"""
+- Plan REAL para Disashop, no plantilla generica de gestion de proyectos.
+- Resuelve explicitamente conflictos entre areas (ej. si compliance pide controles que rompen el unit economics, ponlo en tech_decisions).
+- Cada workstream debe tener un area responsable clara y entregables atomicos.
+- Prioriza la cohesion del plan y los hitos go/no-go sobre la exhaustividad documental."""
 
 
 def _build_user_prompt(context: SharedContext) -> str:
     """Construye el prompt del usuario con todos los analisis."""
     lines = [
-        f"Solicitud original:\n{context.original_request}\n",
-        "Analisis por dominio:\n",
+        f"Iniciativa de lanzamiento:\n{context.original_request}\n",
+        "Analisis por area de Disashop:\n",
     ]
 
     for subtask in context.subtasks:
@@ -78,7 +80,7 @@ def _build_user_prompt(context: SharedContext) -> str:
         if analysis is None:
             continue
         status = " [DEGRADADO]" if analysis.degraded else ""
-        lines.append(f"### Subtarea: {subtask.description} (Dominio: {subtask.domain}){status}")
+        lines.append(f"### Workstream: {subtask.description} (Area: {subtask.domain}){status}")
         lines.append(f"**Hallazgos:** {analysis.findings}")
         if analysis.recommendations:
             lines.append("**Recomendaciones:**")
@@ -86,9 +88,9 @@ def _build_user_prompt(context: SharedContext) -> str:
                 lines.append(f"  - {rec}")
         lines.append(f"**Confianza:** {analysis.confidence:.0%}\n")
 
-    # Incorporar sugerencias del Reviewer si es una revision
+    # Incorporar sugerencias del Comite de Validacion si es una revision
     if context.review and not context.review.approved:
-        lines.append(f"\n## REVISION #{context.revision_count} - Sugerencias del Reviewer:")
+        lines.append(f"\n## REVISION #{context.revision_count} - Sugerencias del Comite de Validacion:")
         lines.append(f"**Debilidades identificadas:**")
         for w in context.review.weaknesses:
             lines.append(f"  - {w}")
@@ -96,7 +98,7 @@ def _build_user_prompt(context: SharedContext) -> str:
         for s in context.review.suggestions:
             lines.append(f"  - {s}")
         lines.append(
-            "\nIntegra estas sugerencias en tu propuesta de arquitectura. "
+            "\nIntegra estas sugerencias en tu plan de lanzamiento. "
             "Explica en revision_notes como las has incorporado."
         )
 
