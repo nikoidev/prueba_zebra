@@ -1,17 +1,20 @@
 /* ============================================================
-   Zebra Dashboard — Dark Theme
+   Disashop AI Lab — Service Launch Co-Pilot
+   Paleta inspirada en disashop.com (azul corporativo + naranja)
    ============================================================ */
 
 *, *::before, *::after { box-sizing: border-box; }
 
 :root {
-  --bg-base: #0f1117;
-  --bg-surface: #1a1d2e;
-  --bg-card: #21263a;
-  --border: #2e3450;
-  --text: #e2e8f0;
-  --text-dim: #7a8ba6;
-  --accent: #6c8aff;
+  --bg-base: #0b1424;
+  --bg-surface: #122036;
+  --bg-card: #1a2c47;
+  --border: #243a5c;
+  --text: #e6edf7;
+  --text-dim: #8aa0bd;
+  --accent: #ff8200;          /* naranja Disashop */
+  --accent-blue: #1e6fd9;     /* azul corporativo */
+  --accent-soft: #4d8dff;
   --green: #4ade80;
   --yellow: #facc15;
   --red: #f87171;
@@ -58,6 +61,44 @@ html, body { margin: 0; padding: 0; background: var(--bg-base); color: var(--tex
 }
 .empty-icon { font-size: 4rem; }
 .empty-state h2 { color: var(--text); margin: 0; }
+.empty-pipeline { font-size: 12px; color: var(--text-dim); letter-spacing: .04em; margin-top: 4px; }
+
+/* ── Brand header (sidebar) ───────────────────────────── */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 4px 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.brand-mark {
+  width: 38px; height: 38px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--accent-blue), #003c7e);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 800; color: var(--accent); font-size: 22px;
+  letter-spacing: -1px;
+}
+.brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+.brand-title { font-weight: 700; font-size: 15px; color: var(--text); }
+.brand-title span { color: var(--accent); font-weight: 700; }
+.brand-sub { font-size: 11px; color: var(--text-dim); letter-spacing: .04em; text-transform: uppercase; }
+
+/* ── Scenario picker ───────────────────────────────── */
+.scenarios { display: flex; flex-direction: column; gap: 6px; }
+.scenarios-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+.scenario-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: border-color .15s, transform .1s;
+}
+.scenario-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+.scenario-card-title { font-size: 12px; font-weight: 700; color: var(--text); }
+.scenario-card-cat { font-size: 10px; color: var(--accent); margin-top: 2px; letter-spacing: .03em; text-transform: uppercase; }
 
 .error-state {
   display: flex;
@@ -73,7 +114,7 @@ html, body { margin: 0; padding: 0; background: var(--bg-base); color: var(--tex
 
 /* ── Execute Form ────────────────────────────────────────── */
 .execute-form { display: flex; flex-direction: column; gap: 12px; }
-.form-title { margin: 0 0 4px; font-size: 1.1rem; color: var(--accent); }
+.form-title { margin: 0 0 4px; font-size: 1rem; color: var(--accent); font-weight: 700; letter-spacing: .02em; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 12px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }

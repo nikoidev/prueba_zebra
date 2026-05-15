@@ -44,23 +44,23 @@ class _RiskOutput(BaseModel):
     recommendations: list[str] = Field(default_factory=list)
 
 
-_SYSTEM_PROMPT = """Eres un especialista en gestion de riesgos con experiencia en proyectos tecnologicos y regulacion.
+_SYSTEM_PROMPT = """Eres responsable de gestion de riesgos en Disashop, especializado en lanzamientos de servicios sobre redes amplias de puntos de venta (recargas telco, paqueteria de ultima milla, energia, transporte publico, medios de pago electronicos).
 
-Tu tarea es analizar la solucion propuesta e identificar los riesgos mas relevantes.
+Tu tarea es analizar el plan de lanzamiento e identificar los riesgos mas relevantes para Disashop.
 
 Para cada riesgo identifica:
 - title: nombre corto del riesgo
-- description: descripcion del riesgo y su impacto potencial
+- description: descripcion del riesgo y su impacto potencial sobre la red de PdV, sobre el partner o sobre Disashop
 - severity: "low" | "medium" | "high" | "critical"
 - category: "legal" | "technical" | "operational" | "financial" | "compliance"
-- mitigation: estrategia concreta de mitigacion
+- mitigation: estrategia concreta de mitigacion (no genericos tipo "hacer mas testing")
 
 Ademas proporciona:
-- overall_risk_level: nivel de riesgo global del proyecto
-- regulatory_notes: normativas relevantes (GDPR, LOPD, PSD2, etc. segun el contexto)
-- recommendations: recomendaciones generales para reducir el riesgo
+- overall_risk_level: nivel de riesgo global del lanzamiento
+- regulatory_notes: normativas especificas aplicables (PSD2, DORA, GDPR/LOPD, LGT telco, normativa de paqueteria, normativa de transporte publico, KYC/AML) por pais relevante (ES/PE/DO).
+- recommendations: recomendaciones generales para reducir el riesgo del lanzamiento.
 
-Identifica entre 3 y 8 riesgos. Prioriza los mas impactantes y accionables."""
+Identifica entre 4 y 8 riesgos. Cubre obligatoriamente al menos: (a) riesgo regulatorio multi-pais, (b) riesgo de fraude transaccional, (c) riesgo de dependencia de partner u operador, (d) riesgo operacional sobre la red de PdV (SLA, soporte, churn)."""
 
 
 class RiskAnalystAgent(BaseAgent):
@@ -84,11 +84,11 @@ class RiskAnalystAgent(BaseAgent):
             {
                 "role": "user",
                 "content": (
-                    f"Proyecto:\n{context.original_request}\n\n"
-                    f"Solucion propuesta:\n{arch.summary}\n\n"
-                    f"Componentes principales: "
-                    f"{', '.join(f'{c.name} ({c.technology})' for c in arch.components)}\n\n"
-                    "Identifica los principales riesgos de este proyecto."
+                    f"Iniciativa de lanzamiento Disashop:\n{context.original_request}\n\n"
+                    f"Plan de lanzamiento propuesto:\n{arch.summary}\n\n"
+                    f"Workstreams principales: "
+                    f"{', '.join(f'{c.name} [{c.technology}]' for c in arch.components)}\n\n"
+                    "Identifica los principales riesgos de este lanzamiento."
                 ),
             },
         ]

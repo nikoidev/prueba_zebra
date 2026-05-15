@@ -1,0 +1,34 @@
+{
+  "scenarios": [
+    {
+      "id": "peruconnect",
+      "title": "Operador movil prepago PeruConnect (PE)",
+      "category": "Telco / Productos digitales",
+      "description": "Incorporar PeruConnect, un nuevo operador movil prepago peruano, a la red de 8.000 puntos de venta Disashop en Peru. El servicio ofrece recargas de saldo y paquetes de datos, con comision escalonada por volumen para el PdV (3%-5%) y un PIN dinamico de validacion contra fraude. Lanzamiento objetivo: 60 dias. Integracion via API REST del operador y despliegue en TPV propios y Smart POS Android. Necesario reporting diario al operador (volumen, conciliacion) y campana de activacion en provincias de Lima, Arequipa y Trujillo."
+    },
+    {
+      "id": "nextmile",
+      "title": "HUB de paqueteria NextMile en Galicia (ES)",
+      "category": "Paqueteria / Ultima milla",
+      "description": "Lanzar un HUB de paqueteria con el courier NextMile en 5.000 puntos de venta Disashop de Galicia. El PdV actua como punto de recogida y entrega para compras de e-commerce, con check-in via Smart POS, etiquetado mediante app movil Disashop y reverse logistics para devoluciones. Comision por paquete entregado: 0,80€-1,20€ segun volumen. Necesario contrato marco con NextMile, integracion del catalogo de envios en backoffice, formacion al PdV y SLA de almacenaje de 7 dias. Despliegue progresivo: A Coruna -> Pontevedra -> Lugo -> Ourense."
+    },
+    {
+      "id": "energy-comparator",
+      "title": "Comparador de energia integrado en TPV (ES)",
+      "category": "Energia / Servicios al cliente final",
+      "description": "Activar un servicio de comparacion y contratacion de tarifas de luz directamente desde el TPV Disashop, con 3 comercializadoras electricas espanolas. El cliente final entra con su factura, el PdV escanea el CUPS y el sistema propone ahorro estimado y firma electronica del cambio de tarifa. Comision por contrato firmado: 8€-15€ segun comercializadora. Cumplimiento normativo CNMC, proteccion del consumidor y consentimiento informado. Objetivo: 3.000 PdV en peninsula en 90 dias."
+    },
+    {
+      "id": "aeropass",
+      "title": "Recarga AeroPass en PdV de aeropuertos (ES)",
+      "category": "Transporte / Movilidad",
+      "description": "Desplegar la recarga de la tarjeta de transporte aeroportuario AeroPass en 200 puntos de venta Disashop proximos a los aeropuertos de Madrid-Barajas, Barcelona-El Prat, Malaga, Palma y Bilbao. La tarjeta combina trayectos de tren de cercanias, autobus express al aeropuerto y aparcamiento. Integracion con el emisor mediante API en tiempo real, comision fija de 0,30€ por recarga y display QR de saldo en el ticket. Material de senalizacion bilingue ES/EN para el viajero. Objetivo: piloto en Madrid (40 PdV) en 30 dias y rollout completo en 60 dias."
+    },
+    {
+      "id": "supergiro",
+      "title": "Medio de pago electronico SuperGiro (RD)",
+      "category": "Medios de pago / Financiero",
+      "description": "Lanzar SuperGiro, un medio de pago electronico internacional, en 1.500 puntos de venta Disashop en Republica Dominicana. Permite ingresos de efectivo, retiradas y envios de dinero domesticos con KYC ligero (DNI + biometria facial vs base nacional). Comision para Disashop del 1,2% sobre transaccion, repartida con el PdV. Cumplimiento de la Superintendencia de Bancos de RD y normativa AML local. Necesaria integracion con el modulo de cobros del Smart POS Android y formacion intensiva al PdV en deteccion de operaciones sospechosas. Objetivo go-live: 75 dias."
+    }
+  ]
+}

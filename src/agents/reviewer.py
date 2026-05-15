@@ -41,52 +41,52 @@ class _ReviewOutput(BaseModel):
     reasoning: str
 
 
-_SYSTEM_PROMPT = """Eres un revisor critico senior con experiencia en evaluacion de soluciones tecnicas y de negocio.
+_SYSTEM_PROMPT = """Eres miembro senior del Comite de Validacion de Lanzamientos del Disashop AI Lab. Tu trabajo es evaluar de forma rigurosa e imparcial el plan de lanzamiento propuesto antes de aprobar el go-live en la red de PdV.
 
-Tu tarea es evaluar la solucion propuesta de forma rigurosa e imparcial.
+Criterios de evaluacion (especificos de Disashop):
+1. COMPLETITUD MULTI-PAIS Y MULTI-CANAL: cubre el plan TPV propio + Smart POS + app movil + autoservicio + backoffice donde aplique? cubre cada pais (ES/PE/DO) con su normativa?
+2. CIERRE REGULATORIO: el plan resuelve obligaciones reales (PSD2, DORA, GDPR/LOPD, telco LGT, paqueteria, transporte, KYC/AML) o las da por hechas?
+3. INTEGRACION POS REALISTA: las APIs/firmware/app a tocar estan identificadas? hay plan de pruebas en PdV reales antes de despliegue masivo?
+4. UNIT ECONOMICS: el modelo de comisiones esta cerrado y es viable? esta validado contra servicios ya activos en la red?
+5. RIESGO DE FRAUDE: hay controles especificos para los vectores de fraude tipicos del servicio (recargas, paqueteria, transporte, medios de pago)?
+6. OPERACIONES Y SOPORTE: el plan tiene capacidad realista de soporte L1/L2, runbooks y criterios de pausa/rollback?
+7. ACTIVACION DEL PdV: el dueno del PdV tiene argumentario, formacion e incentivo claro para activar el servicio?
+8. DEPENDENCIAS Y HITOS GO/NO-GO: las dependencias entre workstreams son explicitas? hay hitos go/no-go medibles?
 
-Criterios de evaluacion:
-1. COMPLETITUD: La solucion cubre todos los aspectos del request original?
-2. COHERENCIA: Los componentes son consistentes entre si? Hay contradicciones?
-3. VIABILIDAD: La solucion es realista y ejecutable?
-4. CALIDAD: Las decisiones tecnicas estan justificadas? Los trade-offs son razonables?
-5. RIESGOS: Se han identificado los principales riesgos?
+Instrucciones de salida:
+- approved: true si el plan es aceptable para go-live (confidence >= umbral del sistema)
+- confidence: tu nivel de confianza en que el plan es ejecutable y completo (0.0-1.0)
+- strengths: aspectos solidos del plan (minimo 2)
+- weaknesses: lagunas concretas, asunciones sin validar o riesgos no resueltos
+- suggestions: mejoras especificas y accionables que el Director de Programa debe incorporar (vacio si approved=true)
+- reasoning: explicacion de tu evaluacion (2-3 parrafos), citando expresamente los criterios mas debiles
 
-Instrucciones:
-- approved: true si la solucion es aceptable (confidence >= umbral del sistema)
-- confidence: tu nivel de confianza en que la solucion es correcta (0.0-1.0)
-- strengths: aspectos positivos de la solucion (minimo 2)
-- weaknesses: problemas, lagunas o incoherencias detectadas
-- suggestions: mejoras concretas y accionables (vacio si approved=true)
-- reasoning: explicacion de tu evaluacion (2-3 parrafos)
-
-SE CRITICO. Una solucion mediocre con confidence=0.9 es un fallo del revisor.
-Una solucion buena con confidence=0.8 es aprobar correctamente."""
+SE CRITICO: en Disashop un go-live mal cerrado afecta a miles de PdV. Un plan mediocre con confidence=0.9 es un fallo del comite. Un plan solido con confidence=0.8 es aprobar correctamente."""
 
 
 def _build_user_prompt(context: SharedContext) -> str:
     arch = context.architecture
     lines = [
-        f"Request original:\n{context.original_request}\n",
-        f"## Solucion propuesta (revision #{context.revision_count + 1})\n",
-        f"**Resumen:** {arch.summary}\n",
-        f"**Componentes ({len(arch.components)}):**",
+        f"Iniciativa de lanzamiento:\n{context.original_request}\n",
+        f"## Plan de lanzamiento propuesto (revision #{context.revision_count + 1})\n",
+        f"**Resumen ejecutivo:** {arch.summary}\n",
+        f"**Workstreams ({len(arch.components)}):**",
     ]
     for c in arch.components:
-        lines.append(f"  - {c.name} ({c.technology}): {c.description}")
+        lines.append(f"  - {c.name} [{c.technology}]: {c.description}")
 
-    lines.append(f"\n**Integracion:** {arch.integration_notes}")
+    lines.append(f"\n**Coordinacion entre workstreams:** {arch.integration_notes}")
 
     if arch.tech_decisions:
-        lines.append("\n**Decisiones tecnicas:**")
+        lines.append("\n**Decisiones clave del plan:**")
         for td in arch.tech_decisions:
             lines.append(f"  - {td}")
 
     if arch.revision_notes:
         lines.append(f"\n**Notas de revision:** {arch.revision_notes}")
 
-    lines.append(f"\n**Confianza del Architect:** {arch.confidence:.0%}")
-    lines.append(f"\n## Analisis de dominio disponibles\n")
+    lines.append(f"\n**Confianza del Director de Programa:** {arch.confidence:.0%}")
+    lines.append(f"\n## Analisis por area disponibles\n")
 
     for subtask in context.subtasks:
         analysis = context.domain_analyses.get(subtask.id)

@@ -3,6 +3,9 @@ Endpoints REST de la API web.
 """
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +16,8 @@ from src.api.schemas import (
     ExecutionSummary,
     ModelsResponse,
     ProviderInfo,
+    Scenario,
+    ScenariosResponse,
 )
 from src.config import get_settings
 from src.db.connection import get_session_factory
@@ -20,6 +25,8 @@ from src.db.models import AgentTrace, Execution, ExecutionError, ReviewHistory
 from src.db.repository import get_execution_history
 
 router = APIRouter(prefix="/api")
+
+_SCENARIOS_FILE = Path(__file__).resolve().parent.parent.parent / "examples" / "scenarios.json"
 
 
 async def get_db():
@@ -42,6 +49,18 @@ async def get_providers():
         default_model=settings.active_model,
     )
 
+
+@router.get("/scenarios", response_model=ScenariosResponse)
+async def get_scenarios():
+    """Devuelve los escenarios de lanzamiento Disashop precargados para la demo."""
+    try:
+        with _SCENARIOS_FILE.open(encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return ScenariosResponse(scenarios=[])
+    return ScenariosResponse(
+        scenarios=[Scenario(**s) for s in data.get("scenarios", [])]
+    )
 
 @router.get("/models/{provider}", response_model=ModelsResponse)
 async def get_models(provider: str):

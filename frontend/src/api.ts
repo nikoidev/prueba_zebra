@@ -28,6 +28,19 @@ export async function fetchExecutionDetail(id: string) {
   return res.json()
 }
 
+export async function fetchScenarios() {
+  const res = await fetch(`${BASE}/scenarios`)
+  if (!res.ok) throw new Error(await res.text())
+  return res.json() as Promise<{ scenarios: Scenario[] }>
+}
+
+export interface Scenario {
+  id: string
+  title: string
+  category: string
+  description: string
+}
+
 /**
  * Abre una conexion WebSocket y ejecuta el pipeline.
  * Llama a onProgress con cada mensaje de progreso.

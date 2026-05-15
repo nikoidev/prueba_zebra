@@ -19,6 +19,16 @@ class ModelsResponse(BaseModel):
     models: list[str]
 
 
+class Scenario(BaseModel):
+    id: str
+    title: str
+    category: str
+    description: str
+
+
+class ScenariosResponse(BaseModel):
+    scenarios: list[Scenario]
+
 class ExecutionSummary(BaseModel):
     id: str
     original_request: str
